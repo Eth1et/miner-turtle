@@ -1,1 +1,1 @@
-# Computer Craft: Tweaked Miner Algorithm
+# Computer Craft: Tweaked - Miner Algorithm
