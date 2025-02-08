@@ -191,7 +191,7 @@ local function isFull()
 
             if TOSS_GARBAGE then
                 for _, block in ipairs(cfg.GARBAGE_BLOCKS) do
-                    if item_detail.name == block then
+                    if itemDetail.name == block then
                         freeSlots = freeSlots + 1;
                         turtle.select(slot);
                         turtle.drop();
