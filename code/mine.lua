@@ -23,8 +23,7 @@ GO_DOWN_UNTIL_BLOCK = iou.requireBool("Go down until Block is found? (y/n): ");
 -- Init Routine
 iou.clear();
 term.setTextColour(colors.cyan);
-STATE = TurtleState.new(Vector3.new(0,0,0), Direction.Forward, GO_RIGHT);
-
+STATE = TurtleState.new(Vector3.new(0,0,0), Direction.Forward, GO_RIGHT, turtle.getFuelLevel(), turtle.getFuelLimit());
 
 
 -- DISPLAY
@@ -63,6 +62,7 @@ end
 local function moveDown()
     if turtle.down() then
         STATE.pos.y = STATE.pos.y - 1;
+        STATE.fuelLevel = STATE.fuelLevel - 1;
         displayState();
         return true;
     end
@@ -73,6 +73,7 @@ end
 local function moveUp()
     if turtle.up() then
         STATE.pos.y = STATE.pos.y + 1;
+        STATE.fuelLevel = STATE.fuelLevel - 1;
         displayState();
         return true;
     end
@@ -91,6 +92,7 @@ local function moveForward()
         else 
             STATE.pos.z = STATE.pos.z + 1;
         end
+        STATE.fuelLevel = STATE.fuelLevel - 1;
         displayState();
         return true;
     end
@@ -212,12 +214,22 @@ local function storeLoot()
     turnTowards(Direction.Backward)
     for slot = 1, cfg.INVENTORY_SIZE, 1 do
         turtle.select(slot)
-        if turtle.getItemDetail() ~= nil then
-            while turtle.drop() == false do
-                if not WAIT_STORAGE then
-                    break;
+        local itemDetail = turtle.getItemDetail();
+        if itemDetail ~= nil then
+            if TOSS_GARBAGE then
+                for _, block in ipairs(cfg.GARBAGE_BLOCKS) do
+                    if itemDetail.name == block then
+                        turtle.dropDown();
+                        break;
+                    end
                 end
-                iou.waitTillInput("The Chest is full, make some space!");
+            else
+                while turtle.drop() == false do
+                    if not WAIT_STORAGE then
+                        break;
+                    end
+                    iou.waitTillInput("The Chest is full, make some space!");
+                end
             end
         end
     end
@@ -257,7 +269,7 @@ local function goHome(isComplete)
     if isComplete then
         term.setTextColor(colors.green);
         print("Succesfully Finished Program!");
-        os.exit(0);
+        os.shutdown();
     end
 end
 
@@ -279,6 +291,9 @@ local function refuel()
             end
         end
     end
+
+    STATE.fuelLevel = turtle.getFuelLevel();
+    displayState();
 end
 
 --- checks if the fuel level is greater than the sum of coordinate differences compared to (0,0,0)
@@ -294,7 +309,7 @@ end
 --- digs -> moves forward -> digs up -> digs down
 local function dig()
     if digMoveForward() == false then
-        go_home(true);  -- full exit
+        goHome(true);  -- full exit
     end
 
     while turtle.digUp() == false and turtle.detectUp() do
@@ -354,14 +369,22 @@ local function returnAfterStash()
 end
 
 --- descends to the next layer
+--- returns whether it managed to descend
 local function descend(layer)
     local targetY = STATE.pos.y - 3;
 
     if layer == 1 then
         targetY = targetY + 1;
     end
+    if targetY - 1 < -DEPTH then
+        targetY = -DEPTH + 1;
+    end 
 
-    while STATE.pos.y ~= targetY do
+    if targetY == STATE.pos.y and layer > 1 then
+        return false;
+    end
+
+    while STATE.pos.y > targetY do
         if not digMoveDown() then
             goHome(true);
             break;
@@ -371,6 +394,7 @@ local function descend(layer)
     while turtle.digDown() do
         -- repeating digging down until there is nothing
     end
+    return true;
 end
 
 --- digs a row forwards or backwards
@@ -382,12 +406,10 @@ local function digRow()
 end
 
 --- digs one layer of rows and columns
-local function dig_level()
+local function digLayer()
     local first = true;
-    while (GO_RIGHT and STATE.digRight and STATE.pos.z < SIDEWAYS -1) or 
-          (GO_RIGHT and not STATE.digRight and STATE.pos.z >= 0) or 
-          (not GO_RIGHT and STATE.digRight and STATE.pos.z <= 0) or
-          (not GO_RIGHT and  not STATE.digRight and STATE.pos.z > - SIDEWAYS + 1) do
+    while (GO_RIGHT and STATE.digRight and STATE.pos.z < SIDEWAYS -1) or
+          (GO_RIGHT and not STATE.digRight and STATE.pos.z > 0) do
         refuel();
         turtle.select(1);
 
@@ -414,26 +436,44 @@ local function dig_level()
     end
 end
 
+--- descends at the start to skip sweeping empty layers
+local function descendTillBlock()
+    while not turtle.detectDown() do
+        moveDown();
+    end
+end
 
 
+
+-- MAIN
+
+--- executes program
 local function main()
     refuel();
     turtle.select(1);
 
-    local layerCount = math.ceil(DEPTH / 3);
+    local layerCount = math.ceil(DEPTH * 1.0 / 3.0);
 
-    term.setTextColour(colors.orange);
-    local estTime = layerCount / 25.0 * math.abs(SIDEWAYS) * math.abs(FORWARD) * cfg.LAYER_TIME_FOR_5X5_IN_MINUTES;
-    print("Gonna do " .. tostring(layerCount) .. " layers, est. time: " .. math.floor(estTime) .. "m");
-    os.sleep(2.5);
-    term.setTextColour(colors.cyan);
-    
+    if GO_DOWN_UNTIL_BLOCK then
+        descendTillBlock();
+    end
+
     for layer = 1, layerCount, 1 do
+        STATE.estTime = (layerCount - layer + 1) / 25.0 * math.abs(SIDEWAYS) * math.abs(FORWARD) * cfg.LAYER_TIME_FOR_5X5_IN_MINUTES;
         displayState();
-        descend(layer);
-        dig_level();
+        if not descend(layer) then
+            break;
+        end
+
+        digLayer();
         STATE.digRight = not STATE.digRight;
-        turnTowards(STATE.lookDir + 2);
+        turnTowards(STATE.lookDir + 2); 
+    end
+    
+    STATE.estTime = 0;
+    displayState();
+    if RETURN_ON_FINISH then
+        goHome(true);
     end
 end
 
