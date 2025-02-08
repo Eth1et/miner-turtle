@@ -425,6 +425,7 @@ local function main()
     term.setTextColour(colors.orange);
     local estTime = layerCount / 25.0 * math.abs(SIDEWAYS) * math.abs(FORWARD) * cfg.LAYER_TIME_FOR_5X5_IN_MINUTES;
     print("Gonna do " .. tostring(layerCount) .. " layers, est. time: " .. math.floor(estTime) .. "m");
+    os.sleep(2.5);
     term.setTextColour(colors.cyan);
     
     for layer = 1, layerCount, 1 do
