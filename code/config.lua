@@ -14,7 +14,13 @@ return {
         "minecraft:clay_ball",
         "minecraft:andesite",
         "minecraft:granite",
-        "minecraft:diorite"
+        "minecraft:diorite",
+        "minecraft:soulsand",
+        "minecraft:soulsoil",
+        "minecraft:gravel",
+        "minecraft:blackstone",
+        "minecraft:magma_block",
+        "minecraft:nether_brick"
     },
 
     FUEL_ITEMS = {
